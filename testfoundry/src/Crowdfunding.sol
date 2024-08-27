@@ -2,14 +2,15 @@
 pragma solidity 0.8.19;
 
 import {PriceConverter} from "./lib/PriceConverter.sol";
-
+import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 contract Crowdfunding {
-    using PriceConverter for uint256;
+    using PriceConverter for address;
 
     error NoAvailableAmount();
 
     uint256 public constant MINIMUM_USD = 5e18; // 5 USD in Wei
     address public immutable i_owner;
+    address public immutable i_ehtUsdPriceFeed;
 
     mapping(address => bool) public s_isFunders;
     mapping(address => uint256) public s_funderToAmount;
@@ -26,8 +27,9 @@ contract Crowdfunding {
         fund();
     }
 
-    constructor() {
+    constructor(address ethUsdPriceFeed) {
         i_owner = msg.sender;
+        i_ehtUsdPriceFeed = ethUsdPriceFeed;
     }
 
     modifier onlyOwner() {
@@ -38,7 +40,7 @@ contract Crowdfunding {
     }
 
     function fund() public payable {
-        // require(msg.value.getConversionRate() >= MINIMUM_USD, "no available amount");
+        require(i_ehtUsdPriceFeed.getConversionRate(msg.value) >= MINIMUM_USD, "no available amount");
 
         s_funderToAmount[msg.sender] += msg.value;
         bool isFunded = s_isFunders[msg.sender];
@@ -61,5 +63,11 @@ contract Crowdfunding {
     // Tìm ra có bao nhiêu người đã đóng góp
     function getFundersLength() public view returns (uint256) {
         return s_funders.length;
+    }
+    function getEthUsdPrice() public view returns(uint256) {
+        return i_ehtUsdPriceFeed.getPrice();
+    }
+    function getPriceFeedVersion() public view returns(uint256) {
+        return AggregatorV3Interface(0x694AA1769357215DE4FAC081bf1f309aDC325306).version();
     }
 }
